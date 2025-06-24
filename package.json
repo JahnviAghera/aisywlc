@@ -12,6 +12,8 @@
     "@emotion/is-prop-valid": "latest",
     "@neondatabase/serverless": "latest",
     "@radix-ui/react-separator": "^1.0.3",
+    "@supabase/ssr": "latest",
+    "@supabase/supabase-js": "latest",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "latest",
