@@ -1062,7 +1062,7 @@ export default function HomePage() {
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
           >
-            <p>&copy; 2025 IEEE Gujarat Section. All rights reserved. | Designed with ❤️ for innovation</p>
+            {/* <p>&copy; 2025 IEEE Gujarat Section. All rights reserved. | Designed with ❤️ for innovation</p> */}
           </motion.div>
         </div>
       </footer>

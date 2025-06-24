@@ -1,17 +1,20 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createUser, createRegistration, createNotification, getUser } from "@/lib/db"
+import { createClient } from "@/lib/supabase";
+import crypto from 'crypto';
+import bcrypt from 'bcrypt';
+import { cookies } from "next/headers";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const {
       email,
-      firstName,
-      lastName,
+        first_name,
+        last_name,
       phone,
       organization,
       designation,
-      registrationType,
+      category,
       ieeeNumber,
       dietaryRequirements,
       accommodationNeeded,
@@ -19,54 +22,87 @@ export async function POST(request: NextRequest) {
       specialRequirements,
     } = body
 
-    // Check if user already exists
-    const existingUser = await getUser(email)
-    if (existingUser) {
+    // Create a Supabase client
+    const supabase = createClient();
+
+    // Check if user already exists in Supabase
+    const { data: existingUsers, error: existingUserError } = await supabase
+      .from('users')
+      .select()
+      .eq('email', email)
+
+    if (existingUserError) {
+      console.error("Supabase user check error:", existingUserError)
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    }
+
+    if (existingUsers && existingUsers.length > 0) {
       return NextResponse.json({ error: "User with this email already exists" }, { status: 400 })
     }
 
-    // Calculate payment amount based on registration type
-    const paymentAmounts = {
-      student: 2500,
-      professional: 5000,
-      ieee_member: 2000,
+    // Generate random password
+    const password = crypto.randomBytes(16).toString('hex');
+
+    // Hash the password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Create user in Supabase
+    const { data: newUser, error: createUserError } = await supabase
+      .from('users')
+      .insert({
+        email,
+        first_name,
+        last_name,
+        phone,
+        organization,
+        designation,
+        password_hash: hashedPassword, // Store the hashed password
+      })
+      .select()
+
+    if (createUserError) {
+      console.error("Supabase user creation error:", createUserError)
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 })
     }
-    const paymentAmount = paymentAmounts[registrationType as keyof typeof paymentAmounts] || 5000
 
-    // Create user
-    const user = await createUser({
-      email,
-      firstName,
-      lastName,
-      phone,
-      organization,
-      designation,
-    })
+    if (!newUser || newUser.length === 0) {
+      console.error("Supabase user creation error: No user returned")
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    }
 
-    // Create registration
-    const registration = await createRegistration({
-      userId: user.id,
-      registrationType,
-      ieeeNumber,
-      dietaryRequirements,
-      accommodationNeeded: accommodationNeeded || false,
-      accommodationType,
-      specialRequirements,
-      paymentAmount,
-    })
+    const user = newUser[0];
 
-    // Create welcome notification
-    await createNotification({
-      userId: user.id,
-      title: "Welcome to AISYWLC 2025!",
-      message: "Thank you for registering. Please complete your payment to confirm your registration.",
-      type: "success",
-    })
+    // Create registration in Supabase
+    const { data: newRegistration, error: createRegistrationError } = await supabase
+      .from('registrations')
+      .insert({
+        user_id: user.id,
+        registration_type: category,
+        ieee_membership_number: ieeeNumber,
+        dietary_requirements: dietaryRequirements,
+        accommodation_needed: accommodationNeeded,
+        accommodation_type: accommodationType,
+        special_requirements: specialRequirements,
+      })
+      .select()
+
+    if (createRegistrationError) {
+      console.error("Supabase registration creation error:", createRegistrationError)
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    }
+
+    if (!newRegistration || newRegistration.length === 0) {
+      console.error("Supabase registration creation error: No registration returned")
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    }
+
+    const registration = newRegistration[0];
 
     return NextResponse.json({
       success: true,
-      user,
-      registration,
+      userId: user.id,
+      registrationId: registration.id,
       message: "Registration successful! Please proceed with payment.",
     })
   } catch (error) {

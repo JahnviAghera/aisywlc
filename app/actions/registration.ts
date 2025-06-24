@@ -1,6 +1,10 @@
 "use server"
 
-import { createUser, createRegistration, createNotification, getUser } from "@/lib/db"
+import { createRegistration, createNotification, getUser } from "@/lib/db"
+import { createClient } from "@/lib/supabase";
+
+import { cookies } from "next/headers";
+import { redirect } from 'next/navigation'
 
 export async function submitRegistration(formData: FormData) {
   try {
@@ -17,56 +21,63 @@ export async function submitRegistration(formData: FormData) {
     const accommodationType = formData.get("accommodationType") as string
     const specialRequirements = formData.get("specialRequirements") as string
 
-    // Check if user already exists
-    const existingUser = await getUser(email)
+    const supabase = createClient();
+
+    // Check if user already exists in Supabase
+    const { data: existingUser, error: existingUserError } = await supabase
+      .from('users')
+      .select()
+      .eq('email', email)
+      .single()
+
+    if (existingUserError) {
+      console.error("Supabase user check error:", existingUserError)
+      return {
+        error: "Registration failed. Please try again.",
+      }
+    }
+
     if (existingUser) {
       return {
         error: "User with this email already exists",
       }
     }
 
-    // Calculate payment amount
-    const paymentAmounts = {
-      student: 2500,
-      professional: 5000,
-      ieee_member: 2000,
+    const res = await fetch("/api/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        firstName,
+        lastName,
+        phone,
+        organization,
+        designation,
+        registrationType,
+        ieeeNumber,
+        dietaryRequirements,
+        accommodationNeeded,
+        accommodationType,
+        specialRequirements,
+      }),
+    })
+
+    const data = await res.json()
+
+    if (data.error) {
+      return {
+        error: data.error,
+      }
     }
-    const paymentAmount = paymentAmounts[registrationType as keyof typeof paymentAmounts] || 5000
 
-    // Create user
-    const user = await createUser({
-      email,
-      firstName,
-      lastName,
-      phone,
-      organization,
-      designation,
-    })
-
-    // Create registration
-    const registration = await createRegistration({
-      userId: user.id,
-      registrationType,
-      ieeeNumber,
-      dietaryRequirements,
-      accommodationNeeded,
-      accommodationType,
-      specialRequirements,
-      paymentAmount,
-    })
-
-    // Create welcome notification
-    await createNotification({
-      userId: user.id,
-      title: "Welcome to AISYWLC 2025!",
-      message: "Thank you for registering. Please complete your payment to confirm your registration.",
-      type: "success",
-    })
+    if (data.success) {
+      redirect(`/register/success?registrationId=${data.registrationId}`)
+    }
 
     return {
-      success: true,
-      registrationId: registration.id,
-      paymentAmount,
+      error: "Registration failed. Please try again.",
     }
   } catch (error) {
     console.error("Registration error:", error)

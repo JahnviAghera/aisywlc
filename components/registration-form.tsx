@@ -1,6 +1,7 @@
 "use client"
 
 import { Separator } from "@/components/ui/separator"
+import { useRouter } from 'next/navigation';
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
@@ -17,8 +18,8 @@ import { User, Building, CreditCard, CheckCircle, ArrowLeft, ArrowRight, Calenda
 
 interface FormData {
   // Personal Information
-  firstName: string
-  lastName: string
+  first_name: string
+  last_name: string
   email: string
   phone: string
   dateOfBirth: string
@@ -47,8 +48,8 @@ interface FormData {
 }
 
 const initialFormData: FormData = {
-  firstName: "",
-  lastName: "",
+  first_name: "",
+  last_name: "",
   email: "",
   phone: "",
   dateOfBirth: "",
@@ -122,6 +123,7 @@ export default function RegistrationForm() {
   const [formData, setFormData] = useState<FormData>(initialFormData)
   const [errors, setErrors] = useState<Partial<FormData>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const router = useRouter();
 
   const updateFormData = (field: keyof FormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -136,8 +138,8 @@ export default function RegistrationForm() {
 
     switch (step) {
       case 1:
-        if (!formData.firstName) newErrors.firstName = "First name is required"
-        if (!formData.lastName) newErrors.lastName = "Last name is required"
+        if (!formData.first_name) newErrors.first_name = "First name is required"
+        if (!formData.last_name) newErrors.last_name = "Last name is required"
         if (!formData.email) newErrors.email = "Email is required"
         if (!formData.phone) newErrors.phone = "Phone number is required"
         if (!formData.gender) newErrors.gender = "Gender is required"
@@ -154,7 +156,7 @@ export default function RegistrationForm() {
         if (!formData.paymentMethod) newErrors.paymentMethod = "Payment method is required"
         break
       case 5:
-        if (!formData.agreeToTerms) newErrors.agreeToTerms = "You must agree to terms and conditions"
+        if (!formData.agreeToTerms) newErrors.agreeToTerms = true
         break
     }
 
@@ -176,12 +178,31 @@ export default function RegistrationForm() {
     if (!validateStep(currentStep)) return
 
     setIsSubmitting(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    setIsSubmitting(false)
 
-    // Here you would typically send the data to your backend
-    console.log("Form submitted:", formData)
+    try {
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Registration failed:', errorData);
+        // Handle error (e.g., display error message to the user)
+        throw new Error(errorData.error || 'Registration failed');
+      }
+
+      const data = await response.json();
+      console.log('Registration successful:', data);
+      router.push('/register/success');
+    } catch (error) {
+      console.error('Registration error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const getRegistrationFee = () => {
@@ -226,38 +247,38 @@ export default function RegistrationForm() {
           <div className="space-y-6">
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">First Name *</Label>
+                <Label htmlFor="first_name">First Name *</Label>
                 <Input
-                  id="firstName"
-                  value={formData.firstName}
-                  onChange={(e) => updateFormData("firstName", e.target.value)}
-                  className={errors.firstName ? "border-red-500" : ""}
+                  id="first_name"
+                  value={formData.first_name}
+                  onChange={(e) => updateFormData("first_name", e.target.value)}
+                  className={errors.first_name ? "border-red-500" : ""}
                 />
-                {errors.firstName && (
+                {errors.first_name && (
                   <motion.p
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="text-red-500 text-sm"
                   >
-                    {errors.firstName}
+                    {errors.first_name}
                   </motion.p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name *</Label>
+                <Label htmlFor="last_name">Last Name *</Label>
                 <Input
-                  id="lastName"
-                  value={formData.lastName}
-                  onChange={(e) => updateFormData("lastName", e.target.value)}
-                  className={errors.lastName ? "border-red-500" : ""}
+                  id="last_name"
+                  value={formData.last_name}
+                  onChange={(e) => updateFormData("last_name", e.target.value)}
+                  className={errors.last_name ? "border-red-500" : ""}
                 />
-                {errors.lastName && (
+                {errors.last_name && (
                   <motion.p
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="text-red-500 text-sm"
                   >
-                    {errors.lastName}
+                    {errors.last_name}
                   </motion.p>
                 )}
               </div>
@@ -683,7 +704,7 @@ export default function RegistrationForm() {
                 <CardContent className="space-y-2 text-sm">
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
-                      <strong>Name:</strong> {formData.firstName} {formData.lastName}
+                      <strong>Name:</strong> {formData.first_name} {formData.last_name}
                     </div>
                     <div>
                       <strong>Email:</strong> {formData.email}
