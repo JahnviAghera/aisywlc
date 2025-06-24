@@ -1,14 +1,21 @@
 import { neon } from "@neondatabase/serverless"
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL environment variable is not set")
-}
+let sql: ReturnType<typeof neon> | null = null
 
-export const sql = neon(process.env.DATABASE_URL)
+function getDb() {
+  if (!sql) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL environment variable is not set")
+    }
+    sql = neon(process.env.DATABASE_URL)
+  }
+  return sql
+}
 
 // Database utility functions
 export async function getUser(email: string) {
-  const result = await sql`
+  const db = getDb()
+  const result = await db`
     SELECT * FROM users WHERE email = ${email} LIMIT 1
   `
   return result[0] || null
@@ -22,7 +29,8 @@ export async function createUser(userData: {
   organization?: string
   designation?: string
 }) {
-  const result = await sql`
+  const db = getDb()
+  const result = await db`
     INSERT INTO users (email, first_name, last_name, phone, organization, designation)
     VALUES (${userData.email}, ${userData.firstName}, ${userData.lastName}, 
             ${userData.phone || null}, ${userData.organization || null}, ${userData.designation || null})
@@ -41,7 +49,8 @@ export async function createRegistration(registrationData: {
   specialRequirements?: string
   paymentAmount: number
 }) {
-  const result = await sql`
+  const db = getDb()
+  const result = await db`
     INSERT INTO registrations (
       user_id, registration_type, ieee_membership_number, dietary_requirements,
       accommodation_needed, accommodation_type, special_requirements, payment_amount
@@ -58,7 +67,8 @@ export async function createRegistration(registrationData: {
 }
 
 export async function getRegistrations(limit = 50, offset = 0) {
-  const result = await sql`
+  const db = getDb()
+  const result = await db`
     SELECT r.*, u.first_name, u.last_name, u.email, u.organization
     FROM registrations r
     JOIN users u ON r.user_id = u.id
@@ -69,7 +79,8 @@ export async function getRegistrations(limit = 50, offset = 0) {
 }
 
 export async function getRegistrationStats() {
-  const result = await sql`
+  const db = getDb()
+  const result = await db`
     SELECT 
       COUNT(*) as total_registrations,
       COUNT(CASE WHEN registration_status = 'confirmed' THEN 1 END) as confirmed_registrations,
@@ -81,7 +92,8 @@ export async function getRegistrationStats() {
 }
 
 export async function getEvents() {
-  const result = await sql`
+  const db = getDb()
+  const result = await db`
     SELECT * FROM events 
     WHERE is_active = true 
     ORDER BY start_time ASC
@@ -90,7 +102,8 @@ export async function getEvents() {
 }
 
 export async function getSponsors() {
-  const result = await sql`
+  const db = getDb()
+  const result = await db`
     SELECT * FROM sponsors 
     WHERE is_active = true 
     ORDER BY 
@@ -112,7 +125,8 @@ export async function createPayment(paymentData: {
   paymentMethod: string
   paymentGatewayId?: string
 }) {
-  const result = await sql`
+  const db = getDb()
+  const result = await db`
     INSERT INTO payments (user_id, registration_id, amount, payment_method, payment_gateway_id)
     VALUES (${paymentData.userId}, ${paymentData.registrationId}, ${paymentData.amount}, 
             ${paymentData.paymentMethod}, ${paymentData.paymentGatewayId || null})
@@ -122,7 +136,8 @@ export async function createPayment(paymentData: {
 }
 
 export async function updatePaymentStatus(paymentId: number, status: string, transactionId?: string) {
-  const result = await sql`
+  const db = getDb()
+  const result = await db`
     UPDATE payments 
     SET payment_status = ${status}, transaction_id = ${transactionId || null}, updated_at = CURRENT_TIMESTAMP
     WHERE id = ${paymentId}
@@ -132,7 +147,8 @@ export async function updatePaymentStatus(paymentId: number, status: string, tra
 }
 
 export async function updateRegistrationStatus(registrationId: number, status: string) {
-  const result = await sql`
+  const db = getDb()
+  const result = await db`
     UPDATE registrations 
     SET registration_status = ${status}, updated_at = CURRENT_TIMESTAMP
     WHERE id = ${registrationId}
@@ -147,7 +163,8 @@ export async function createNotification(notificationData: {
   message: string
   type?: string
 }) {
-  const result = await sql`
+  const db = getDb()
+  const result = await db`
     INSERT INTO notifications (user_id, title, message, type)
     VALUES (${notificationData.userId}, ${notificationData.title}, 
             ${notificationData.message}, ${notificationData.type || "info"})
@@ -157,7 +174,8 @@ export async function createNotification(notificationData: {
 }
 
 export async function getUserNotifications(userId: number, limit = 10) {
-  const result = await sql`
+  const db = getDb()
+  const result = await db`
     SELECT * FROM notifications 
     WHERE user_id = ${userId} 
     ORDER BY created_at DESC 
@@ -176,7 +194,8 @@ export async function logAdminAction(logData: {
   ipAddress?: string
   userAgent?: string
 }) {
-  const result = await sql`
+  const db = getDb()
+  const result = await db`
     INSERT INTO admin_logs (
       admin_user_id, action, target_table, target_id, 
       old_values, new_values, ip_address, user_agent
