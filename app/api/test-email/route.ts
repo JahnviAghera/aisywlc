@@ -7,15 +7,15 @@ export async function POST() {
     const result = await sendRegistrationConfirmationEmail({
       firstName: "Test",
       lastName: "User",
-      email: "jahnviaghera@gmail.com", // Replace with your email for testing
+      email: "test@example.com", // You can change this to your email for testing
       registrationId: "REG-TEST-001",
       registrationType: "student",
       paymentAmount: 2500,
     })
 
     return NextResponse.json({
-      success: true,
-      message: "Test email sent successfully!",
+      success: result.success,
+      message: result.success ? "Test email sent successfully!" : "Email sending failed",
       result: result,
     })
   } catch (error) {
@@ -23,7 +23,7 @@ export async function POST() {
     return NextResponse.json(
       {
         error: "Failed to send test email",
-        details: error,
+        details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 },
     )
@@ -35,5 +35,6 @@ export async function GET() {
     message: "Email test endpoint - use POST to send test email",
     status: "ready",
     hasApiKey: !!process.env.RESEND_API_KEY,
+    apiKeyPreview: process.env.RESEND_API_KEY ? `${process.env.RESEND_API_KEY.substring(0, 10)}...` : "Not set",
   })
 }
