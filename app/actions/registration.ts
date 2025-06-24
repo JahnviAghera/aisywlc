@@ -1,6 +1,7 @@
 "use server"
 
 import { createUser, createRegistration, createNotification, getUser } from "@/lib/db"
+import { sendRegistrationConfirmationEmail } from "@/lib/email"
 
 export async function submitRegistration(formData: FormData) {
   try {
@@ -63,10 +64,27 @@ export async function submitRegistration(formData: FormData) {
       type: "success",
     })
 
+    // Send registration confirmation email
+    try {
+      await sendRegistrationConfirmationEmail({
+        firstName,
+        lastName,
+        email,
+        registrationId: registration.id,
+        registrationType,
+        paymentAmount,
+      })
+      console.log("Registration confirmation email sent successfully")
+    } catch (emailError) {
+      console.error("Failed to send registration confirmation email:", emailError)
+      // Don't fail the registration if email fails
+    }
+
     return {
       success: true,
       registrationId: registration.id,
       paymentAmount,
+      message: "Registration successful! Please check your email for confirmation details.",
     }
   } catch (error) {
     console.error("Registration error:", error)
