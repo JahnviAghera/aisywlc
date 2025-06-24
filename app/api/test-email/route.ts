@@ -7,7 +7,7 @@ export async function POST() {
     const result = await sendRegistrationConfirmationEmail({
       firstName: "Test",
       lastName: "User",
-      email: "test@example.com", // Replace with your email for testing
+      email: "jahnviaghera@gmail.com", // Replace with your email for testing
       registrationId: "REG-TEST-001",
       registrationType: "student",
       paymentAmount: 2500,
