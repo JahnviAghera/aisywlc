@@ -1,11 +1,24 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Users, UserCheck, CreditCard, Calendar, Settings, BarChart3, Download, Shield, TrendingUp } from "lucide-react"
+import {
+  Users,
+  UserCheck,
+  CreditCard,
+  Calendar,
+  Settings,
+  BarChart3,
+  Download,
+  Shield,
+  TrendingUp,
+  LogOut,
+} from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
+import { useRouter } from "next/navigation"
 import AdminStats from "@/components/admin/admin-stats"
 import RegistrationManagement from "@/components/admin/registration-management"
 import UserManagement from "@/components/admin/user-management"
@@ -22,6 +35,48 @@ const fadeInUp = {
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview")
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
+  const supabase = createClient()
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session) {
+        router.push("/login?redirectTo=/admin")
+        return
+      }
+
+      setUser(session.user)
+      setLoading(false)
+    }
+
+    checkAuth()
+  }, [router, supabase.auth])
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    router.push("/")
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-orange-50/30 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-orange-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading admin dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null // Will redirect to login
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-orange-50/30">
@@ -51,9 +106,14 @@ export default function AdminDashboard() {
                 <div className="w-2 h-2 bg-green-500 rounded-full mr-2" />
                 System Online
               </Badge>
+              <span className="text-sm text-gray-600">Welcome, {user.email}</span>
               <Button variant="outline" size="sm">
                 <Download className="w-4 h-4 mr-2" />
                 Export Data
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleSignOut}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
               </Button>
             </div>
           </div>
